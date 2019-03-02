@@ -3,7 +3,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 import math
-
+from dparams import *
 
 def eea(_a, _b):
     u1 = 1
@@ -52,3 +52,24 @@ def select_SHA_context(length_in_bits):
     else:
         # TODO Exception
         print("Error, output to big for now")
+
+
+def hashH1(material, kgc_public, endian=ENDIAN, id_size=ID_SIZE):
+    material = material.to_bytes(id_size, endian)
+    context = hashes.Hash(kgc_public.h1sf, backend=default_backend())
+    context.update(material)
+    exponent = int.from_bytes(context.finalize(), byteorder = endian)
+    hsh = pow(kgc_public.QRN_generator, exponent, kgc_public.N)
+    return hsh
+
+#Rozłożenie N-1 = d* (2**r)
+
+
+def mr(number):
+    t = number
+    r = 0
+    while t%2 == 0:
+        t //= 2
+        r += 1
+    return t, r
+

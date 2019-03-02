@@ -1,0 +1,111 @@
+
+type qrn_type.
+type exp_type.
+type agent.
+type role_type.
+type com.
+
+(* Globalnie *)
+
+const g: qrn_type. 
+const ok : com.
+const r : role_type.
+const i : role_type.
+free exec:bitstring [private].   
+
+(* fun rsa_sgn(qrn_type, exp_type) : qrn_type.
+reduc forall m:qrn_type, sk:exp_type; rsa_unsgn(rsa_sgn(m,sk), pk(sk)) = m. *)
+
+
+
+fun revert(qrn_type) : qrn_type.
+fun exp(qrn_type, exp_type) : qrn_type.
+fun mul(qrn_type, qrn_type) : qrn_type.
+fun emul(exp_type, exp_type) : qrn_type.
+fun h1(agent) : qrn_type.
+fun h2(bitstring) : bitstring.
+
+(* Mnożenie *)
+const one : qrn_type.
+equation forall a : qrn_type, b : qrn_type; mul(a,b) = mul(b,a).
+(* equation forall q : qrn_type; mul(q,one) = q.
+equation forall q : qrn_type; mul(q, revert(q)) = one. *)
+
+(* Potęgowanie *)
+fun pk(exp_type) : exp_type.
+(* equation forall q : qrn_type, x : exp_type; exp(exp(q,x),pk(x)) = q. *)
+reduc forall ee : exp_type, id : agent, d : exp_type; remove_key ( mul(exp(g,ee), exp(h1(id),d)), id) = exp(exp(g,ee),pk(d)).
+equation forall q : qrn_type, x : exp_type, y : exp_type; exp(exp(q,x),y) = exp(exp(q,y),x).
+
+
+
+
+free c : channel.
+free secure_channel : channel [private].
+
+
+(* Events *)
+event I_complete(agent, agent, bitstring).
+event R_complete(agent, agent, bitstring).
+
+
+query attacker(exec).
+(* query a : agent, b : agent, k : bitstring; event R_complete(a,b,k) ==> event I_complete(a,b,k). *)
+
+let processKGC(d : exp_type) = 
+	out (c, pk(d));
+	(*in (c, id1);
+	out (safe_distribution, exp(h1(id1),d))*)
+	0.
+	
+let processUserI (userID : agent, d : exp_type) = 
+	new ee : exp_type;
+	let longtermkey = exp(h1(userID), d) in
+	let expg = exp(g,ee) in
+	let alpha_beta = mul(expg, longtermkey) in
+	out (c, (userID, alpha_beta));
+	
+	(* event Sent(userID, alpha_beta); *)
+	
+	in (c, (seconduserID : agent, beta_alpha : qrn_type));
+	(*let x1 = exp(beta_alpha, pk(d)) in
+	let x2 = mul(x1,revert(h1(seconduserID))) in *)
+	let x3 = remove_key(beta_alpha, seconduserID) in
+	let k = exp(x3, ee) in
+	let shared_secret = h2((k, userID, seconduserID, alpha_beta, beta_alpha)) in
+	event I_complete(userID, seconduserID, shared_secret);
+	out (secure_channel, ok);
+	
+	0.
+	
+let processUserR (userID : agent, d : exp_type) = 
+	new ee : exp_type;
+	in (c, (seconduserID : agent, beta_alpha : qrn_type));
+	let longtermkey = exp(h1(userID), d) in
+	let expg = exp(g,ee) in
+	let alpha_beta = mul(expg, longtermkey) in
+	out (c, (userID, alpha_beta));
+	
+	(*let x1 = exp(beta_alpha, pk(d)) in
+	let x2 = mul(x1,revert(h1(seconduserID))) in *)
+	let x3 = remove_key(beta_alpha, seconduserID) in
+	let k = exp(x3, ee) in
+	let shared_secret = h2((k, seconduserID, userID, beta_alpha, alpha_beta)) in
+	in (secure_channel, =ok);
+	
+	
+	event R_complete(seconduserID, userID, shared_secret);
+	out(c, exec);
+	0.
+
+
+
+process
+	new idA : agent;
+	new idB : agent;
+	new d: exp_type;
+	(
+	 (!processUserI(idA,d)) | 
+	 (!processUserR(idB,d)) |
+	 (processKGC(d))
+	)

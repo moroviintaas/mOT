@@ -1,0 +1,64 @@
+theory mot
+begin
+
+builtins: diffie-hellman, hashing, symmetric-encryption
+functions: H1/1, H2/5, mul/2, power/2, mulinv/1, mul_neutral/0
+equations: power(power(x,y),z) = power(x, mul(y,z)), power(x, mul_neutral) = x, mul(x,y) = mul(y,x), mul(mul(x,y),z) = mul(x, mul(y,z)), mul(x,mul_neutral) = x, mul(x,mulinv(x)) = mul_neutral
+	
+
+/* KGC generuje parę kluczy RSA */
+rule Register_KGC_pk:
+    [ Fr(~d), Fr(~g) ]
+    -->
+    [ !KGC_secret($KGC, ~d), !KGC_public($KGC, inv(~d),~g), Out(inv(~d)),Out(~g) ]
+
+
+/*KGC tworzy klucz prywatny użytkownika na podstawie id i swojego klucza prywatnego - zakaładamy, że dostarczenie klucza odbywa się drogą bezpieczną (fizyczne wgranie do urządzenia). */
+
+rule Generate_user_private_key:
+    [ !KGC_secret($KGC, d) ]
+    -->
+    [ !User_secret($KGC, $USER, H1($USER)^d)  ]
+
+/* Tworzenie wiadomości do wymiany */
+/* Obliczanie g^x */
+rule Message_step1:
+    [ Fr(~eph_exp), !KGC_public(KGC, e, g ), !User_secret(KGC, Sender, Sender_ltk) ]
+    -->
+    [ Step1( Sender, Sender_ltk, ~eph_exp, mul(g,~eph_exp), KGC, e, g) ]
+
+/* Obliczanie (g^x) *UA */
+rule Message:
+    let
+    msg = mul(gexp, Sender_ltk)
+    in
+    [ Fr(eph_exp), Step1(Sender, Sender_ltk, eph_exp, gexp, KGC, e, g) ]
+    -->
+    [ !Sent_message(Sender, msg), Created_message(Sender, msg, eph_exp),  !Log_message(KGC, Sender, eph_exp), POINT1(KGC, Sender, msg), Out(msg) ]
+
+rule Calculate_handshake:
+    let
+    rH = mulinv(H1(Sender))
+    msgexp = power(msg_from_sender,e)
+    K1 = mul(msgexp, rH)
+    K = power(K1,rec_exp)
+    
+    in
+    [!User_secret(KGC, Receiver, Receiver_ltk),  !Sent_message(Sender, msg_from_sender), !KGC_public(KGC, e, g), Created_message(Receiver, msg_from_receiver, rec_exp) ]
+    --[
+    POINT2(Receiver, Sender, K, msg_from_receiver, msg_from_sender) 
+    ]->
+    [ State(Receiver, Sender, K, msg_from_receiver, msg_from_sender) ]
+
+lemma cango:
+        exists-trace
+        "
+        /*Ex KGC A B msgfA msgfB #i #j #k #l.
+            (((POINT1(KGC, A, msgfA) @i & POINT1(KGC, B, msgfB)) & state(A,B,msgfA,msgfB) @k) & state(B,A,msgfB,msgfA) @l):*/
+        Ex A B msgfA msgfB K #i #j.
+            POINT2(A, B, K, msgfA, msgfB) @i & POINT2(B,A, K, msgfB, msgfA) @j
+        "
+
+
+
+end

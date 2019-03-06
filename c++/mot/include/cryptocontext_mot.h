@@ -1,9 +1,11 @@
 #ifndef CRYPTOCONTEXT_MOT_H
 #define CRYPTOCONTEXT_MOT_H
 #include "include/sessionparameters.h"
-#include <boost/multiprecision/gmp.hpp>
+//#include <boost/multiprecision/gmp.hpp>
+#include <gmpxx.h>
 
-typedef boost::multiprecision::mpz_int cint;
+
+typedef mpz_class cint;
 
 class CryptoContext_mot
 {

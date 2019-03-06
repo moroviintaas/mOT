@@ -1,8 +1,9 @@
 #include <stdint.h>
+#include <gmpxx.h>
 #ifndef SESSIONPARAMETERS_H
 #define SESSIONPARAMETERS_H
 
-
+typedef mpz_class cint;
 
 class SessionParameters
 {
@@ -10,7 +11,6 @@ protected:
     /**
      * @brief rsa_key_size
      * The size in bits of RSA module used in session, note that this is size used in communication and storage.
-     * Due to computing issues, this size operating size will be twice that value.
      */
     uint32_t rsa_key_size;
     /**
@@ -29,6 +29,18 @@ protected:
      * The size in bits of user identificator in the system. Note that all users id must not exceed this size.
      */
     uint32_t user_id_size;
+    /**
+     * @brief generator Group generator provided by KGC.
+     */
+    cint generator;
+    /**
+     * @brief kgc_modulus Modulus of KGC used in RSA based system of signing users ID.
+     */
+    cint kgc_modulus;
+    /**
+     * @brief kgc_public_exponent Public exponent of KGC (in RSA system).
+     */
+    cint kgc_public_exponent;
 
 public:
     SessionParameters();

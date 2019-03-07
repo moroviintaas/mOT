@@ -10,11 +10,12 @@ int main()
 {
     //boost::multiprecision::mpz_int a;
     cint N, e, d;
+    cint test1;
     std::ifstream fin("test_input.txt", std::ios_base::in);
     std::ofstream bfout("test_binary_output", std::ios_base::out | std::ios_base::binary);
     std::ofstream fout("test_output.txt", std::ios_base::out);
 
-    SessionParameters system_params(512, 256, 256, 64);
+    SessionParameters system_params(512, 256, 256, 64, 256, 256);
     CryptoContext_mot user_context(system_params);
 
 
@@ -25,6 +26,10 @@ int main()
     //std::cout<<N.backend().data()->_mp_d[0]<<"\n";
 
 
+    std::cout<<std::hex<<N.get_ui()<<"\n";
+
+    std::cin>>std::hex>>test1;
+    std::cout<<std::hex<<user_context.hash1(test1)<<"\n";
     //std::cout<<N.backend().data()->_mp_alloc<<"\n";
 
 

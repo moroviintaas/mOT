@@ -30,18 +30,19 @@ protected:
      * @brief user_id_size The size in bits of user identificator in the system. Note that all users id must not exceed this size.
      */
     uint32_t user_id_size;
+
+    /**
+     * @brief h1_hash_size Size of output of hash function H1 in bits (before squaring mod N).
+     */
+    uint32_t h1_hash_size;
+    /**
+     * @brief h1_hash_size Size of output of hash function H2 in bits.
+     */
+    uint32_t h2_hash_size;
     /**
      * @brief generator Group generator provided by KGC.
      */
     cint generator;
-    /**
-     * @brief h1_output_size Size of output of hash function H1 in bits.
-     */
-    uint32_t h1_output_size;
-    /**
-     * @brief h1_output_size Size of output of hash function H2 in bits.
-     */
-    uint32_t h2_output_size;
     /**
      * @brief kgc_modulus Modulus of KGC used in RSA based system of signing users ID.
      */
@@ -56,7 +57,7 @@ protected:
 public:
 
     SessionParameters();
-    SessionParameters(uint32_t rsa_key_size, uint32_t session_key_size, uint32_t ephemeral_exponent_size, uint32_t user_id_size, uint32_t h1_output_size, uint32_t h2_output_size);
+    SessionParameters(uint32_t rsa_key_size, uint32_t session_key_size, uint32_t ephemeral_exponent_size, uint32_t user_id_size, uint32_t h1_hash_size, uint32_t h2_hash_size, const cint & kgc_modulus, const cint & kgc_public_exponent, const cint & generator);
     uint32_t get_rsa_key_size() const;
     void set_rsa_key_size(const uint32_t &value);
     uint32_t get_session_key_size() const;
@@ -65,10 +66,16 @@ public:
     void set_ephemeral_exponent_size(const uint32_t &value);
     uint32_t get_user_id_size() const;
     void set_user_id_size(const uint32_t &value);
-    uint32_t get_h1_output_size() const;
-    void set_h1_output_size(const uint32_t &value);
-    uint32_t get_h2_output_size() const;
-    void set_h2_output_size(const uint32_t &value);
+    uint32_t get_h1_hash_size() const;
+    void set_h1_hash_size(const uint32_t &value);
+    uint32_t get_h2_hash_size() const;
+    void set_h2_hash_size(const uint32_t &value);
+    cint get_generator() const;
+    void set_generator(const cint &value);
+    cint get_kgc_public_exponent() const;
+    void set_kgc_public_exponent(const cint &value);
+    cint get_kgc_modulus() const;
+    void set_kgc_modulus(const cint &value);
 
     /**
      * @brief operator = is standard assignment operator.
@@ -76,6 +83,8 @@ public:
      * @return is reference to object to which values has been assigned.
      */
     SessionParameters & operator=(const SessionParameters & params);
+
+
 
 };
 

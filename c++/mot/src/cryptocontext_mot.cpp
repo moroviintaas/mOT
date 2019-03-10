@@ -34,10 +34,19 @@ bool CryptoContext_mot::compute_hash(const EVP_MD* evp_sha, uint8_t * const to_h
                             success = true;
 
                         }
+                        else
+                        {
+                            std::cout<<"API length:"<<std::dec<<lengthOfHash<<"\n";
+                            std::cout<<"Demanded length:"<<size_of_hashed<<"\n";
+                            std::cout<<"hash fails at 1\n";
+                        }
 
                     }
+                    else std::cout<<"hash fails at 2\n";
                 }
+                else std::cout<<"hash fails at 3\n";
             }
+            else std::cout<<"hash fails at 4\n";
 
             EVP_MD_CTX_free(context);
         }
@@ -55,21 +64,25 @@ CryptoContext_mot::CryptoContext_mot(const SessionParameters &params)
 cint CryptoContext_mot::hash1(const cint &id_to_hash) const
 {
     cint id = id_to_hash;
-    cint result;
+    cint result = 0;
+    cint h_result=0;
+    cint two = cint(2);
+    std::cout<<"N:\t"<<std::hex<<net_config.get_kgc_modulus()<<"\n";
+    std::cout<<id_to_hash<<"\n";
     uint32_t buffer_size = net_config.get_user_id_size()/8;
     uint8_t* const message_buffer = new uint8_t [buffer_size];
     uint8_t* c_hash;
-    uint32_t hash_len;
+    uint32_t hash_len = net_config.get_h1_output_size()/8;
     bool success;
     const EVP_MD *evp_sha;
-    if(net_config.get_user_id_size()<=256)
+    if(net_config.get_h1_output_size()<=256)
     {
         evp_sha = EVP_sha256();
         c_hash= new uint8_t[256/8];
     }
     else
     {
-        evp_sha  =EVP_sha512();
+        evp_sha = EVP_sha512();
         c_hash = new uint8_t[512/8];
     }
     //convert input in to bytes
@@ -87,13 +100,12 @@ cint CryptoContext_mot::hash1(const cint &id_to_hash) const
     success = compute_hash(evp_sha,message_buffer,buffer_size,c_hash, hash_len);
     if(success)
     {
-        std::cout<<std::dec<<hash_len<<"\n";
-        for(uint32_t i =0; i<hash_len; ++i)
+        for (uint32_t i =0; i< hash_len; i++)
         {
-            std::cout<<std::hex<<std::setw(2)<<std::setfill('0')<<uint32_t(c_hash[i])<<" ";
+            h_result <<= 8;
+            h_result += c_hash[hash_len-1-i];
         }
-        std::cout<<"\n";
-
+        mpz_powm_sec(result.get_mpz_t(),h_result.get_mpz_t(), two.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t() );
     }
     else
     {
@@ -104,5 +116,6 @@ cint CryptoContext_mot::hash1(const cint &id_to_hash) const
     delete [] message_buffer;
     delete [] c_hash;
 
-    return cint(0);
+    if(success)    return result;
+    else return cint(0);
 }

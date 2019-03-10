@@ -2,6 +2,13 @@ TEMPLATE = app
 CONFIG += console c++11
 CONFIG -= app_bundle
 CONFIG -= qt
+LIBS += -lgmp -lgmpxx -lcrypto
 
 SOURCES += \
-        main.cpp
+    src/cryptocontext_mot.cpp \
+    src/main.cpp \
+    src/sessionparameters.cpp
+
+HEADERS += \
+    include/cryptocontext_mot.h \
+    include/sessionparameters.h

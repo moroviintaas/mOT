@@ -7,8 +7,8 @@ LIBS += -lgmp -lgmpxx -lcrypto
 SOURCES += \
     src/cryptocontext_mot.cpp \
     src/main.cpp \
-    src/sessionparameters.cpp
+    src/protocolparameters.cpp
 
 HEADERS += \
     include/cryptocontext_mot.h \
-    include/sessionparameters.h
+    include/protocolparameters.h

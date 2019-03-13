@@ -3,6 +3,8 @@
 #ifndef SESSIONPARAMETERS_H
 #define SESSIONPARAMETERS_H
 #include <openssl/sha.h>
+#include <fstream>
+#include <string>
 
 //tmp include:
 #include <iostream>
@@ -10,7 +12,7 @@
 
 typedef mpz_class cint;
 
-class SessionParameters
+class ProtocolParameters
 {
 protected:
     /**
@@ -34,11 +36,11 @@ protected:
     /**
      * @brief h1_hash_size Size of output of hash function H1 in bits (before squaring mod N).
      */
-    uint32_t h1_hash_size;
+    uint32_t h1_output_size;
     /**
      * @brief h1_hash_size Size of output of hash function H2 in bits.
      */
-    uint32_t h2_hash_size;
+    uint32_t h2_output_size;
     /**
      * @brief generator Group generator provided by KGC.
      */
@@ -56,8 +58,8 @@ protected:
 
 public:
 
-    SessionParameters();
-    SessionParameters(uint32_t rsa_key_size, uint32_t session_key_size, uint32_t ephemeral_exponent_size, uint32_t user_id_size, uint32_t h1_hash_size, uint32_t h2_hash_size, const cint & kgc_modulus, const cint & kgc_public_exponent, const cint & generator);
+    ProtocolParameters();
+    ProtocolParameters(uint32_t rsa_key_size, uint32_t session_key_size, uint32_t ephemeral_exponent_size, uint32_t user_id_size, uint32_t h1_hash_size, uint32_t h2_hash_size, const cint & kgc_modulus, const cint & kgc_public_exponent, const cint & generator);
     uint32_t get_rsa_key_size() const;
     void set_rsa_key_size(const uint32_t &value);
     uint32_t get_session_key_size() const;
@@ -66,10 +68,10 @@ public:
     void set_ephemeral_exponent_size(const uint32_t &value);
     uint32_t get_user_id_size() const;
     void set_user_id_size(const uint32_t &value);
-    uint32_t get_h1_hash_size() const;
-    void set_h1_hash_size(const uint32_t &value);
-    uint32_t get_h2_hash_size() const;
-    void set_h2_hash_size(const uint32_t &value);
+    uint32_t get_h1_output_size() const;
+    void set_h1_output_size(const uint32_t &value);
+    uint32_t get_h2_output_size() const;
+    void set_h2_output_size(const uint32_t &value);
     cint get_generator() const;
     void set_generator(const cint &value);
     cint get_kgc_public_exponent() const;
@@ -82,7 +84,9 @@ public:
      * @param params is assigned object of type SessionParams
      * @return is reference to object to which values has been assigned.
      */
-    SessionParameters & operator=(const SessionParameters & params);
+    ProtocolParameters & operator=(const ProtocolParameters & params);
+
+    static bool ReadProtocolParameters(const char* config_file_name, uint32_t &rsa_key_size, uint32_t &session_key_size, uint32_t &ephemeral_exponent_size, uint32_t &user_id_size, uint32_t &h1_hash_size, uint32_t &h2_hash_size,  cint & kgc_modulus, cint & kgc_public_exponent, cint & generator);
 
 
 

@@ -6,6 +6,32 @@
 }*/
 
 
+
+
+void CryptoContext_mot::generate_session_exponent()
+{
+    //boost::random_device rd;
+    std::random_device rd;
+    std::uniform_int_distribution<uint32_t> d(0, UINT32_MAX);
+    std::ifstream rin("/dev/urandom");
+    ephemeral_exponent = 0;
+    uint32_t full_iterations = net_config.get_ephemeral_exponent_size()/32;
+    uint32_t last_iteration_size = net_config.get_ephemeral_exponent_size()%32;
+    for (uint32_t i =0; i<full_iterations; i++)
+    {
+        ephemeral_exponent<<=32;
+        ephemeral_exponent^=(d(rd)&0xffffffff);
+    }
+    if(last_iteration_size !=0)
+    {
+        ephemeral_exponent <<= last_iteration_size;
+        ephemeral_exponent^=(d(rd)&0xffffffff);
+    }
+
+
+
+}
+
 bool CryptoContext_mot::compute_hash(const EVP_MD* evp_sha, uint8_t * const to_hash, uint32_t size_of_to_hash, uint8_t *hashed, uint32_t &size_of_hashed) const
 {
     bool success = false;
@@ -56,9 +82,11 @@ bool CryptoContext_mot::compute_hash(const EVP_MD* evp_sha, uint8_t * const to_h
 
 
 
-CryptoContext_mot::CryptoContext_mot(const SessionParameters &params)
+CryptoContext_mot::CryptoContext_mot(const ProtocolParameters &params, const cint &user_id, const cint &user_pk)
 {
     net_config = params;
+    this->user_id = user_id;
+    this->user_ltk = user_pk;
 }
 
 cint CryptoContext_mot::hash1(const cint &id_to_hash) const
@@ -118,4 +146,93 @@ cint CryptoContext_mot::hash1(const cint &id_to_hash) const
 
     if(success)    return result;
     else return cint(0);
+}
+
+bool CryptoContext_mot::ReadUserDataNotEncrypted(const char *user_data_filename, cint &user_id, cint &user_sk)
+{
+    std::ifstream ifs(user_data_filename, std::ios_base::in);
+    double version;
+    std::string param_name;
+    char c_buf;
+    uint32_t i_buf;
+    uint32_t line = 1;
+
+    user_id = user_sk =0;
+
+    ifs>>param_name;
+    if (param_name != "version:")
+    {
+        ifs.close();
+        return false;
+    }
+    ifs>>version;
+    line = 2;
+
+    ifs>>param_name;
+    while (ifs.good())
+    {
+        if (param_name == "id:")
+        {
+            ifs>>std::dec>>i_buf;
+            ifs>>c_buf;
+            ifs>>std::hex>>user_id;
+            //std::cout<<std::dec<<(int) i_buf<<"\t"<< c_buf<<"\t"<<kgc_public_exponent<<"\n";
+        }
+        else if (param_name == "sk:")
+        {
+            ifs>>std::dec>>i_buf;
+            ifs>>c_buf;
+            ifs>>std::hex>>user_sk;
+        }
+        ++line;
+        ifs>>param_name;
+
+    }
+    ifs.close();
+    if(user_id ==0 || user_sk == 0) return false;
+    return true;
+
+}
+
+cint CryptoContext_mot::protocol_message_cint()
+{
+    cint result;
+    generate_session_exponent();
+    std::cout<<"pm DEBUG:\n";
+    std::cout<<"generator:\t"<<std::hex<<net_config.get_generator()<<"\n";
+    std::cout<<"ee:\t"<<std::hex<<ephemeral_exponent<<"\n";
+    mpz_powm_sec(result.get_mpz_t(),net_config.get_generator().get_mpz_t(), ephemeral_exponent.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
+    std::cout<<"after_expo:\t"<<std::hex<<result<<"\n";
+    std::cout<<"user_ltk:\t"<<std::hex<<user_ltk<<"\n";
+    result = (result * user_ltk) % net_config.get_kgc_modulus();
+    std::cout<<"result:\t"<<result<<"\n";
+    return result;
+}
+
+cint CryptoContext_mot::calculate_K(const cint &message, const cint &corespondent_id) const
+{
+    cint tmp1,tmp2,tmp3, result;
+    cint doubled_exponent = ephemeral_exponent * 2;
+    cint user_hash = hash1(corespondent_id);
+
+    //int control= 0;
+   std::cout<<"cK DEBUG:\n";
+   std::cout<<"msg:\t"<<std::hex<<message<<"\n";
+   std::cout<<"cor_user_id:\t"<<std::hex<<corespondent_id<<"\n";
+   std::cout<<"cor_user_hash:\t"<<std::hex<<user_hash<<"\n";
+   std::cout<<"own_user_id:\t"<<std::hex<<user_id<<"\n";
+   std::cout<<"user_ltk:\t"<<std::hex<<user_ltk<<"\n";
+   std::cout<<"generator:\t"<<std::hex<<net_config.get_generator()<<"\n";
+   std::cout<<"N:\t"<<std::hex<<net_config.get_kgc_modulus()<<"\n";
+   std::cout<<"e:\t"<<std::hex<<net_config.get_kgc_public_exponent()<<"\n";
+   mpz_invert(tmp1.get_mpz_t(), user_hash.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
+   std::cout<<"inversion:\t"<<std::hex<<tmp1<<"\n";
+   mpz_powm_sec(tmp2.get_mpz_t(), message.get_mpz_t(), net_config.get_kgc_public_exponent().get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
+   std::cout<<"k1:\t"<<tmp2<<"\n";
+   tmp3 = (tmp1 * tmp2) % net_config.get_kgc_modulus();
+   std::cout<<"k2:\t"<<tmp3<<"\n";
+   mpz_powm_sec(result.get_mpz_t(), tmp3.get_mpz_t(), doubled_exponent.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
+   std::cout<<"result:\t"<<result<<"\n";
+   return result;
+
 }

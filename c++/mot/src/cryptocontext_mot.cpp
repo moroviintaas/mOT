@@ -198,14 +198,8 @@ cint CryptoContext_mot::protocol_message_cint()
 {
     cint result;
     generate_session_exponent();
-    std::cout<<"pm DEBUG:\n";
-    std::cout<<"generator:\t"<<std::hex<<net_config.get_generator()<<"\n";
-    std::cout<<"ee:\t"<<std::hex<<ephemeral_exponent<<"\n";
     mpz_powm_sec(result.get_mpz_t(),net_config.get_generator().get_mpz_t(), ephemeral_exponent.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
-    std::cout<<"after_expo:\t"<<std::hex<<result<<"\n";
-    std::cout<<"user_ltk:\t"<<std::hex<<user_ltk<<"\n";
     result = (result * user_ltk) % net_config.get_kgc_modulus();
-    std::cout<<"result:\t"<<result<<"\n";
     return result;
 }
 
@@ -215,24 +209,10 @@ cint CryptoContext_mot::calculate_K(const cint &message, const cint &coresponden
     cint doubled_exponent = ephemeral_exponent * 2;
     cint user_hash = hash1(corespondent_id);
 
-    //int control= 0;
-   std::cout<<"cK DEBUG:\n";
-   std::cout<<"msg:\t"<<std::hex<<message<<"\n";
-   std::cout<<"cor_user_id:\t"<<std::hex<<corespondent_id<<"\n";
-   std::cout<<"cor_user_hash:\t"<<std::hex<<user_hash<<"\n";
-   std::cout<<"own_user_id:\t"<<std::hex<<user_id<<"\n";
-   std::cout<<"user_ltk:\t"<<std::hex<<user_ltk<<"\n";
-   std::cout<<"generator:\t"<<std::hex<<net_config.get_generator()<<"\n";
-   std::cout<<"N:\t"<<std::hex<<net_config.get_kgc_modulus()<<"\n";
-   std::cout<<"e:\t"<<std::hex<<net_config.get_kgc_public_exponent()<<"\n";
    mpz_invert(tmp1.get_mpz_t(), user_hash.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
-   std::cout<<"inversion:\t"<<std::hex<<tmp1<<"\n";
    mpz_powm_sec(tmp2.get_mpz_t(), message.get_mpz_t(), net_config.get_kgc_public_exponent().get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
-   std::cout<<"k1:\t"<<tmp2<<"\n";
    tmp3 = (tmp1 * tmp2) % net_config.get_kgc_modulus();
-   std::cout<<"k2:\t"<<tmp3<<"\n";
    mpz_powm_sec(result.get_mpz_t(), tmp3.get_mpz_t(), doubled_exponent.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
-   std::cout<<"result:\t"<<result<<"\n";
    return result;
 
 }

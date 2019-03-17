@@ -1,9 +1,9 @@
 #include "include/cryptocontext_mot.h"
 #include <openssl/sha.h>
-/*CryptoContext_mot::CryptoContext_mot()
+CryptoContext_mot::CryptoContext_mot()
 {
-
-}*/
+    valid = false;
+}
 
 
 
@@ -86,11 +86,26 @@ CryptoContext_mot::CryptoContext_mot(const ProtocolParameters &params, const cin
 {
     net_config = params;
     this->user_id = user_id;
-    this->user_ltk = user_pk;
+    this->user_sk = user_pk;
+
+    if(params.get_valid() && user_id >0 && user_pk > 0) valid = true;
+    else valid = false;
+}
+
+CryptoContext_mot::CryptoContext_mot(const CryptoContext_mot &context)
+{
+    net_config = context.net_config;
+    user_id = context.user_id;
+    user_sk = context.user_sk;
+    ephemeral_exponent = context.ephemeral_exponent;
+
+    valid = context.valid;
 }
 
 cint CryptoContext_mot::hash1(const cint &id_to_hash) const
 {
+    if (!valid) return -1;
+
     cint id = id_to_hash;
     cint result = 0;
     cint h_result=0;
@@ -196,15 +211,19 @@ bool CryptoContext_mot::ReadUserDataNotEncrypted(const char *user_data_filename,
 
 cint CryptoContext_mot::protocol_message_cint()
 {
+    if (!valid) return -1;
+
     cint result;
     generate_session_exponent();
     mpz_powm_sec(result.get_mpz_t(),net_config.get_generator().get_mpz_t(), ephemeral_exponent.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
-    result = (result * user_ltk) % net_config.get_kgc_modulus();
+    result = (result * user_sk) % net_config.get_kgc_modulus();
     return result;
 }
 
 cint CryptoContext_mot::calculate_K(const cint &message, const cint &corespondent_id) const
 {
+    if (!valid) return -1;
+
     cint tmp1,tmp2,tmp3, result;
     cint doubled_exponent = ephemeral_exponent * 2;
     cint user_hash = hash1(corespondent_id);
@@ -214,5 +233,17 @@ cint CryptoContext_mot::calculate_K(const cint &message, const cint &coresponden
    tmp3 = (tmp1 * tmp2) % net_config.get_kgc_modulus();
    mpz_powm_sec(result.get_mpz_t(), tmp3.get_mpz_t(), doubled_exponent.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
    return result;
+
+}
+
+CryptoContext_mot &CryptoContext_mot::operator=(const CryptoContext_mot &context)
+{
+    net_config = context.net_config;
+    user_id = context.user_id;
+    user_sk = context.user_sk;
+    ephemeral_exponent = context.ephemeral_exponent;
+    valid = context.valid;
+
+    return *this;
 
 }

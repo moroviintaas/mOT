@@ -6,16 +6,17 @@
 #include "openssl/evp.h"
 #include <random>
 #define SIZE_UL sizeof(unsigned long)
-
+#define BUFFSIZE 2048
 
 
 
 class CryptoContext_mot
 {
 protected:
+    bool valid;
     ProtocolParameters net_config;
     cint user_id;
-    cint user_ltk;
+    cint user_sk;
     cint ephemeral_exponent;
     /**
      * @brief generate_session_exponent Generates ephemeral exponent using boost:random_device.
@@ -24,7 +25,7 @@ protected:
 
 
 public:
-    //CryptoContext_mot();
+    CryptoContext_mot();
     /**
      * @brief compute_hash Computes hash function (of sha2 family), curently supports only sha256.
      * @param to_hash Buffer to be hashed.
@@ -35,13 +36,13 @@ public:
      */
     bool compute_hash( const EVP_MD* evp_sha ,uint8_t* const to_hash, uint32_t size_of_to_hash, uint8_t* hashed, uint32_t &size_of_hashed) const;
     CryptoContext_mot(const ProtocolParameters & params, const cint &user_id, const cint &user_pk);
+    CryptoContext_mot(const CryptoContext_mot &context);
     /**
      * @brief hash1 Method makes hash1 function on user_id.
      * @param id_to_hash User Id to be hashed, it is of type mpz_class.
      * @return Output of hash function in type of mpz_class.
      */
     cint hash1(const cint &id_to_hash) const;
-
     /**
      * @brief ReadUserDataNotEncrypted Reads user info including his id and pk
      * @param user_data_file Name (path) to file containing data.
@@ -49,10 +50,15 @@ public:
      * @param user_pk Here will be put pk (ltk) of user which is read from file.
      * @return True if success, false otherwise.
      */
-    static bool ReadUserDataNotEncrypted(const char* user_data_filename, cint &user_id, cint &user_pk);
+    static bool ReadUserDataNotEncrypted(const char* user_data_filename, cint &user_id, cint &user_sk);
 
     cint protocol_message_cint();
     cint calculate_K(const cint &message, const cint &corespondent_id) const;
+    /**
+     * @brief copy_base Copies the context without ephemeral data.
+     * @return Copy of context, does not set
+     */
+    CryptoContext_mot &operator=(const CryptoContext_mot &context);
 
 
 

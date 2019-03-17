@@ -10,6 +10,14 @@
 #include <iostream>
 #include <iomanip>
 
+#define MIN_RSA_KEY_SIZE 1024
+#define MIN_SESSION_KEY_SIZE 128
+#define MIN_EPHEMERAL_EXPONENT_SIZE 64
+#define MIN_USER_ID_SIZE  16
+#define MIN_H1_OUTPUT_SIZE 128
+#define MIN_H2_OUTPUT_SIZE 128
+
+
 typedef mpz_class cint;
 
 class ProtocolParameters
@@ -53,6 +61,7 @@ protected:
      * @brief kgc_public_exponent Public exponent of KGC (in RSA system).
      */
     cint kgc_public_exponent;
+    bool valid;
 
 
 
@@ -78,6 +87,7 @@ public:
     void set_kgc_public_exponent(const cint &value);
     cint get_kgc_modulus() const;
     void set_kgc_modulus(const cint &value);
+    bool get_valid() const;
 
     /**
      * @brief operator = is standard assignment operator.
@@ -87,6 +97,7 @@ public:
     ProtocolParameters & operator=(const ProtocolParameters & params);
 
     static bool ReadProtocolParameters(const char* config_file_name, uint32_t &rsa_key_size, uint32_t &session_key_size, uint32_t &ephemeral_exponent_size, uint32_t &user_id_size, uint32_t &h1_hash_size, uint32_t &h2_hash_size,  cint & kgc_modulus, cint & kgc_public_exponent, cint & generator);
+
 
 
 

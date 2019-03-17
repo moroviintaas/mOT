@@ -4,9 +4,14 @@
 
 
 
+bool ProtocolParameters::get_valid() const
+{
+    return valid;
+}
+
 ProtocolParameters::ProtocolParameters()
 {
-
+    valid = false;
 }
 
 ProtocolParameters::ProtocolParameters(uint32_t rsa_key_size, uint32_t session_key_size, uint32_t ephemeral_exponent_size, uint32_t user_id_size,uint32_t h1_output_size, uint32_t h2_output_size, const cint &kgc_modulus,const cint & kgc_public_exponent, const cint & generator)
@@ -20,6 +25,10 @@ ProtocolParameters::ProtocolParameters(uint32_t rsa_key_size, uint32_t session_k
     set_generator(generator);
     set_kgc_public_exponent(kgc_public_exponent);
     set_kgc_modulus(kgc_modulus);
+
+    if(rsa_key_size >= MIN_RSA_KEY_SIZE && session_key_size >= MIN_SESSION_KEY_SIZE && ephemeral_exponent_size >= MIN_EPHEMERAL_EXPONENT_SIZE && user_id_size >= MIN_USER_ID_SIZE && h1_output_size >= MIN_H1_OUTPUT_SIZE && h2_output_size >= MIN_H2_OUTPUT_SIZE && kgc_modulus > 2 && kgc_public_exponent >=2 && generator >0)
+        valid =true;
+    else valid = false;
 }
 
 
@@ -123,6 +132,7 @@ ProtocolParameters &ProtocolParameters::operator=(const ProtocolParameters &para
     set_kgc_modulus(params.get_kgc_modulus());
     set_kgc_public_exponent(params.get_kgc_public_exponent());
     set_generator(params.get_generator());
+    valid = params.valid;
     return *this;
 }
 

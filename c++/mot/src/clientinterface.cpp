@@ -1,8 +1,8 @@
 #include "include/clientinterface.h"
 
-ClientInterface::ClientInterface(const CryptoContext_mot &context, const std::string &address, uint16_t destination_port, uint16_t source_port)
+ClientInterface::ClientInterface(const std::string &address, uint16_t destination_port, uint16_t source_port)
 {
-    this->context = context;
+    //this->context = context;
     this->destination_port  = destination_port;
     this->source_port = source_port;
     this->address = address;
@@ -10,8 +10,26 @@ ClientInterface::ClientInterface(const CryptoContext_mot &context, const std::st
 
 }
 
-void ClientInterface::start()
+void ClientInterface::start(const CryptoContext_mot &context)
 {
+    CryptoContext_mot tmp_context(context);
+    std::random_device rd;
+    std::uniform_int_distribution<uint32_t> d(0, UINT16_MAX);
+    std::ifstream rin("/dev/urandom");
+    uint32_t session_id;
+    uint16_t size_in_mod = context.get_size_of_initmsg_field();
+    uint16_t valid_size_of_id_source = context.get_size_of_id_field();
+    uint16_t size_of_id_dest =0;
+    uint16_t received_size_of_id_source;
+    cint corresponder_id;
+    CryptoContext_mot actual_context = context;
+    cint client_message;
+    cint server_message;
+    cint K;
+    //uint8_t *send_buf  = new uint8_t[BUFFSIZE];
+    //uint8_t *recv_buf  = new uint8_t[BUFFSIZE];
+    boost::system::error_code ignored_error;
+    std::array<uint8_t, BUFFSIZE> send_buf  = { 0 };
     try {
         boost::asio::io_service io_service;
         udp::resolver resolver(io_service);
@@ -19,18 +37,80 @@ void ClientInterface::start()
         udp::endpoint receiver_endpoint = *resolver.resolve(query);
 
         udp::socket socket(io_service, udp::endpoint(udp::v4(), source_port));
+        std::array<uint8_t, BUFFSIZE> recv_buf;
+        udp::endpoint sender_endpoint;
         //socket.open(udp::v4());
 
-        boost::array<char, 1> send_buf  = { 0 };
-        socket.send_to(boost::asio::buffer(send_buf), receiver_endpoint);
+        session_id = d(rd);
 
-        boost::array<char, 128> recv_buf;
-        udp::endpoint sender_endpoint;
+        client_message = tmp_context.protocol_message_cint();
+
+
+        send_buf[0] = flag_client_hello;
+        send_buf[1] = version_h;//version 0.1
+        send_buf[2] = version_l;
+        /*
+        send_buf[3] = uint8_t((session_id>>8)&0xff);
+        send_buf[4] = uint8_t(session_id&0xff);
+        */
+        uint32tobuffer(session_id, send_buf, 3);
+        uint16tobuffer(valid_size_of_id_source, send_buf, 7);
+        uint16tobuffer(size_of_id_dest ,send_buf,9);
+        uint16tobuffer(size_in_mod, send_buf, 11);
+        mpzclasstobuffer(context.get_user_id(), send_buf,MESSAGE_START);
+        mpzclasstobuffer(client_message,send_buf,MESSAGE_START+size_of_id_dest+valid_size_of_id_source);
+
+
+
+
+
+        //std::cout<<session_id<<"\n";
+
+
+
+
+        socket.send_to(boost::asio::buffer(send_buf), receiver_endpoint,0,ignored_error);
+
+
         size_t len = socket.receive_from(
             boost::asio::buffer(recv_buf), sender_endpoint);
 
-        std::cout.write(recv_buf.data(), len);
-        std::cout<<"\n";
+        if(recv_buf[0] == flag_client_hello)
+        {
+            //std::cout<<"old:"<<std::hex<<session_id<<"\n";
+            //session_id = uint32_t((recv_buf[3]&0xff)<<24) ^ uint32_t((recv_buf[4]&0xff)<<16) ^ uint32_t((recv_buf[5]&0xff)<<8)  ^ uint32_t((recv_buf[6]&0xff));
+            session_id = buffertouint32(recv_buf, 3);
+            size_of_id_dest = buffertouint16(recv_buf,7);
+            received_size_of_id_source = buffertouint16(recv_buf,9);
+            corresponder_id = buffertompzclass(recv_buf,13,size_of_id_dest);
+            server_message = buffertompzclass(recv_buf,MESSAGE_START+size_of_id_dest + received_size_of_id_source,size_in_mod);
+            K = tmp_context.calculate_K(server_message,corresponder_id);
+            K = tmp_context.hash2(K,tmp_context.get_user_id(),valid_size_of_id_source, corresponder_id, size_of_id_dest, client_message, server_message, size_in_mod);
+
+            tmp_context.set_corresponder_id(corresponder_id);
+            tmp_context.set_session_id(session_id);
+
+            /*
+            std::cout<<"sessionid:\t"<<std::hex<<session_id<<"\n";
+            std::cout<<"my id:\t"<<std::hex<<context.get_user_id()<<"\n";
+            std::cout<<"corresponder id\t:"<<std::hex<<corresponder_id<<"\n";
+            std::cout<<"client message:\t"<<client_message<<"\n";
+            std::cout<<"server messgae:\t"<<server_message<<"\n";
+            */
+            std::cout<<"K=\t"<<K<<"\n";
+
+            send_buf[0] = flag_termiante;
+            uint32tobuffer(session_id,send_buf,3);
+            socket.send_to(boost::asio::buffer(send_buf), receiver_endpoint,0,ignored_error);
+
+        }
+        else {
+            //std::cout.write(recv_buf.data(), len);
+            std::cout<<"\n";
+        }
+
+
+
 
 
     } catch (std::exception& e)

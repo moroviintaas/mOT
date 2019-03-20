@@ -142,6 +142,7 @@ int main(int argc, const char* argv[])
         return 0;
     }
 
+
     if(vm.count("mode"))
     {
         if (mode =="server")
@@ -161,8 +162,8 @@ int main(int argc, const char* argv[])
             }
             ProtocolParameters system_params(rsa_key_size,session_key_size,ephemeral_exponent_size,user_id_size,h1_hash_size,h2_hash_size,N,e,generator);
             CryptoContext_mot context(system_params,user_id, user_sk);
-            ServerInterface si(context,source_port);
-            si.start();
+            ServerInterface si(source_port);
+            si.start(context);
 
             //std::cout<<std::dec<<source_port<<"\n";
         }
@@ -185,8 +186,8 @@ int main(int argc, const char* argv[])
             CryptoContext_mot context(system_params,user_id, user_sk);
 
             //std::cout<<address<<"\n";
-            ClientInterface ci(context,address,destination_port,source_port);
-            ci.start();
+            ClientInterface ci(address,destination_port,source_port);
+            ci.start(context);
         }
     }
 

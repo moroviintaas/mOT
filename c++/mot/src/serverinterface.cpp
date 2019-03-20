@@ -1,38 +1,146 @@
 #include "include/serverinterface.h"
 
 
-ServerInterface::ServerInterface(const CryptoContext_mot &context, uint16_t listening_port)
+ServerInterface::ServerInterface(uint16_t listening_port)
 {
 
-    this->context = context;
+    //this->context = context;
     this->listening_port = listening_port;
 
 
 }
 
-void ServerInterface::start()
+void ServerInterface::start(const CryptoContext_mot &context_template)
 {
+
+    std::random_device rd;
+    std::uniform_int_distribution<uint32_t> d(0, UINT16_MAX);
+    std::ifstream rin("/dev/urandom");
+    uint32_t new_session_id;
+    uint32_t operating_session_id;
+    cint client_message;
+    cint server_message;
+    cint K;
+
+    //uint8_t *send_buf  = new uint8_t[BUFFSIZE];
+    //uint8_t *recv_buf  = new uint8_t[BUFFSIZE];
     try
     {
         boost::asio::io_service io_service;
         udp::socket socket(io_service, udp::endpoint(udp::v4(), listening_port));
 
+
+        std::array<uint8_t, BUFFSIZE> recv_buf;
+        udp::endpoint remote_endpoint;
+        boost::system::error_code error;
+        uint16_t size_in_mod = context_template.get_size_of_initmsg_field();
+        uint16_t valid_size_of_id_source = context_template.get_size_of_id_field();
+        uint16_t received_size_of_id_source;
+        uint16_t size_of_id_dest;
+        cint corresponder_id;
+        CryptoContext_mot tmp_context(context_template);
+        std::array<uint8_t, BUFFSIZE> send_buf = {0};
+
+
         for (;;)
         {
-            boost::array<char, 1> recv_buf;
-            udp::endpoint remote_endpoint;
-            boost::system::error_code error;
-            socket.receive_from(boost::asio::buffer(recv_buf),
-                remote_endpoint, 0, error);
+
+            socket.receive_from(boost::asio::buffer(recv_buf),remote_endpoint, 0, error);
+
+            //socket.receive_from(recv_buf,remote_endpoint, 0, error);
 
             if (error && error != boost::asio::error::message_size)
               throw boost::system::system_error(error);
 
-            std::string message = "Hello";
+            if(recv_buf[0]==flag_client_hello)
+            {
+                std::cout<<"Requested new session\n";
 
-            boost::system::error_code ignored_error;
-            socket.send_to(boost::asio::buffer(message),
-                remote_endpoint, 0, ignored_error);
+                //std::cout<<"buffer:\n";
+
+                size_of_id_dest = buffertouint16(recv_buf,7);
+                received_size_of_id_source = buffertouint16(recv_buf,9);
+                if (size_in_mod != buffertouint16(recv_buf,11))
+                {
+                    std::cout<<"not correct mod size!\n";
+                }
+                corresponder_id = buffertompzclass(recv_buf, 13,size_of_id_dest);
+                client_message = buffertompzclass(recv_buf,MESSAGE_START+size_of_id_dest+received_size_of_id_source,size_in_mod);
+
+                server_message = tmp_context.protocol_message_cint();
+
+
+                new_session_id = d(rd)<<16;
+                new_session_id ^= buffertouint32(recv_buf,3);
+
+                K = tmp_context.calculate_K(client_message,corresponder_id);
+                K = tmp_context.hash2(K, corresponder_id, size_of_id_dest,tmp_context.get_user_id(),valid_size_of_id_source, client_message, server_message, size_in_mod);
+                //std::cout<<std::hex<<buffertouint32(recv_buf,3)<<"\n";
+                //new_session_id ^= ((uint32_t(recv_buf[3])<<24) ^ uint32_t(recv_buf[4])<<16);
+
+
+
+                send_buf [0] = flag_client_hello;
+                send_buf [1] = version_h;
+                send_buf [2] = version_l;
+                /*
+                send_buf [3] = uint8_t((new_session_id>>24)&0xff);
+                send_buf [4] = uint8_t((new_session_id>>16)&0xff);
+                send_buf [5] = uint8_t((new_session_id>>8)&0xff);
+                send_buf [6] = uint8_t((new_session_id)&0xff);
+                */
+                uint32tobuffer(new_session_id, send_buf,3);
+                uint16tobuffer(valid_size_of_id_source,send_buf,7);
+                uint16tobuffer(size_of_id_dest,send_buf,9);
+                uint16tobuffer(size_in_mod,send_buf,11);
+                mpzclasstobuffer(context_template.get_user_id(),send_buf,MESSAGE_START);
+                mpzclasstobuffer(corresponder_id,send_buf, MESSAGE_START+valid_size_of_id_source);
+                mpzclasstobuffer(server_message,send_buf,MESSAGE_START+valid_size_of_id_source+size_of_id_dest);
+
+                /*
+                std::cout<<"sessionid:\t"<<std::hex<<new_session_id<<"\n";
+                std::cout<<"my id:\t"<<std::hex<<context_template.get_user_id()<<"\n";
+                std::cout<<"corresponder id\t:"<<std::hex<<corresponder_id<<"\n";
+                std::cout<<"client message:\t"<<client_message<<"\n";
+                std::cout<<"server messgae:\t"<<server_message<<"\n";
+                */
+                std::cout<<"K=\t"<<K<<"\n";
+
+                tmp_context.set_corresponder_id(corresponder_id);
+                tmp_context.set_session_id(new_session_id);
+
+                vec_context.push_back(CryptoContext_mot(tmp_context));
+                boost::system::error_code ignored_error;
+                socket.send_to(boost::asio::buffer(send_buf),                    remote_endpoint, 0, ignored_error);
+                //socket.send_to(send_buf, remote_endpoint, 0, ignored_error);
+            }
+
+            else if (recv_buf[0]==flag_termiante)
+            {
+                operating_session_id = buffertouint32(recv_buf,3);
+                std::cout<<std::hex<<operating_session_id<< "\n";
+                //for(size_t i =0; i< vec_context.size(); ++i)
+                std::vector<CryptoContext_mot>::iterator tmp;
+                for(size_t i =0; i<vec_context.size();  ++i)
+                {
+
+                    if(vec_context[i].get_session_id() == operating_session_id)
+                    {
+                        vec_context.erase(vec_context.begin()+i);
+                    }
+                }
+            }
+
+            else
+            {
+                std::string message = "Hello";
+
+                boost::system::error_code ignored_error;
+                socket.send_to(boost::asio::buffer(message),
+                    remote_endpoint, 0, ignored_error);
+            }
+            std::cout<<"active sessions:\t"<<std::dec<<vec_context.size()<<"\n";
+
         }
     } catch (std::exception& e)
     {

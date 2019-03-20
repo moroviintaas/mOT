@@ -3,6 +3,8 @@
 #include "cryptocontext_mot.h"
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
+#include <vector>
+#include "include/protocolconstructs.h"
 
 #ifndef NETWORKINTERFACE_H
 #define NETWORKINTERFACE_H
@@ -13,7 +15,7 @@ class ServerInterface
 {
 
 protected:
-    CryptoContext_mot context;
+    std::vector<CryptoContext_mot> vec_context;
     uint16_t listening_port;
     //sockaddr_in s_address;
 
@@ -27,8 +29,8 @@ protected:
     */
 
 public:
-    ServerInterface(const CryptoContext_mot &context, uint16_t listening_port);
-    void start();
+    ServerInterface(uint16_t listening_port);
+    void start(const CryptoContext_mot &context_template);
 };
 
 

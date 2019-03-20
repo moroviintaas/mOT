@@ -9,10 +9,12 @@ SOURCES += \
     src/main.cpp \
     src/protocolparameters.cpp \
     src/serverinterface.cpp \
-    src/clientinterface.cpp
+    src/clientinterface.cpp \
+    src/protocolconstructs.cpp
 
 HEADERS += \
     include/cryptocontext_mot.h \
     include/protocolparameters.h \
     include/serverinterface.h \
-    include/clientinterface.h
+    include/clientinterface.h \
+    include/protocolconstructs.h

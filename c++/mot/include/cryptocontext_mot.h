@@ -5,19 +5,27 @@
 #include <gmpxx.h>
 #include "openssl/evp.h"
 #include <random>
+#include <ctime>
 #define SIZE_UL sizeof(unsigned long)
-#define BUFFSIZE 2048
+#define BUFFSIZE 256
 
 
 
 class CryptoContext_mot
 {
+    enum session_status{not_negotiated, running, expired};
 protected:
     bool valid;
     ProtocolParameters net_config;
     cint user_id;
     cint user_sk;
+    cint corresponder_id;
+    uint8_t *negotiated_key;
+    bool allocated_key;
     cint ephemeral_exponent;
+    uint32_t session_id;
+    session_status status;
+    time_t last_active_timestamp;
     /**
      * @brief generate_session_exponent Generates ephemeral exponent using boost:random_device.
      */
@@ -25,7 +33,7 @@ protected:
 
 
 public:
-    CryptoContext_mot();
+    //CryptoContext_mot();
     /**
      * @brief compute_hash Computes hash function (of sha2 family), curently supports only sha256.
      * @param to_hash Buffer to be hashed.
@@ -37,12 +45,14 @@ public:
     bool compute_hash( const EVP_MD* evp_sha ,uint8_t* const to_hash, uint32_t size_of_to_hash, uint8_t* hashed, uint32_t &size_of_hashed) const;
     CryptoContext_mot(const ProtocolParameters & params, const cint &user_id, const cint &user_pk);
     CryptoContext_mot(const CryptoContext_mot &context);
+    ~CryptoContext_mot();
     /**
      * @brief hash1 Method makes hash1 function on user_id.
      * @param id_to_hash User Id to be hashed, it is of type mpz_class.
      * @return Output of hash function in type of mpz_class.
      */
     cint hash1(const cint &id_to_hash) const;
+    cint hash2(const cint &K_d, const cint &id_source, uint32_t bytes_of_id_source, const cint &id_dest, uint32_t bytes_of_id_dest, const cint& msg_source, const cint &msg_dest, uint32_t bytes_of_messages) const;
     /**
      * @brief ReadUserDataNotEncrypted Reads user info including his id and pk
      * @param user_data_file Name (path) to file containing data.
@@ -62,6 +72,17 @@ public:
 
 
 
+    session_status get_status() const;
+    time_t get_last_active_timestamp() const;
+    void set_last_active_timestamp(const time_t &value);
+    uint32_t get_session_id() const;
+    void set_session_id(const uint32_t &value);
+
+    uint16_t get_size_of_id_field() const;
+    uint16_t get_size_of_initmsg_field() const;
+    cint get_user_id() const;
+    cint get_corresponder_id() const;
+    void set_corresponder_id(const cint &value);
 };
 
 #endif // CRYPTOCONTEXT_MOT_H

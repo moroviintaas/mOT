@@ -1,12 +1,28 @@
 #include "include/cryptocontext_mot.h"
 #include <openssl/sha.h>
-CryptoContext_mot::CryptoContext_mot()
+/*CryptoContext_mot::CryptoContext_mot()
 {
     valid = false;
 }
+*/
 
 
 
+
+
+
+
+
+
+cint CryptoContext_mot::get_corresponder_id() const
+{
+    return corresponder_id;
+}
+
+void CryptoContext_mot::set_corresponder_id(const cint &value)
+{
+    corresponder_id = value;
+}
 
 void CryptoContext_mot::generate_session_exponent()
 {
@@ -88,18 +104,83 @@ CryptoContext_mot::CryptoContext_mot(const ProtocolParameters &params, const cin
     this->user_id = user_id;
     this->user_sk = user_pk;
 
+    negotiated_key = new uint8_t [params.get_session_key_size()];
+    allocated_key = true;
+
     if(params.get_valid() && user_id >0 && user_pk > 0) valid = true;
     else valid = false;
+
+    status = not_negotiated;
+
 }
 
 CryptoContext_mot::CryptoContext_mot(const CryptoContext_mot &context)
 {
+    /*if (allocated_key)
+    {
+
+        if(context.allocated_key)
+        {
+            //both allocated but with different sizes
+            if (net_config.get_session_key_size() != context.net_config.get_session_key_size())
+            {
+                delete [] negotiated_key;
+                negotiated_key = new uint8_t [context.net_config.get_session_key_size()/8];
+            }
+            //else is good
+
+        }
+        //else dealocate
+        else
+        {
+            delete [] negotiated_key;
+            allocated_key = false;
+        }
+
+
+    }
+    else
+    {
+        if(context.allocated_key)
+        {
+            negotiated_key = new uint8_t [net_config.get_session_key_size()/8];
+            allocated_key = true;
+        }
+    }
+    */
+    if(context.allocated_key)
+    {
+        negotiated_key = new uint8_t[context.net_config.get_session_key_size()/8];
+        allocated_key = true;
+    }
+
+
     net_config = context.net_config;
     user_id = context.user_id;
     user_sk = context.user_sk;
     ephemeral_exponent = context.ephemeral_exponent;
+    corresponder_id = context.corresponder_id;
+    session_id = context.session_id;
 
+
+
+    if(allocated_key)
+    {
+        for (size_t i =0; i< net_config.get_session_key_size()/8; ++i)
+        {
+            negotiated_key[i] = context.negotiated_key[i];
+        }
+    }
+    status = context.status;
     valid = context.valid;
+}
+
+CryptoContext_mot::~CryptoContext_mot()
+{
+    if(allocated_key)
+    {
+        delete [] negotiated_key;
+    }
 }
 
 cint CryptoContext_mot::hash1(const cint &id_to_hash) const
@@ -161,6 +242,67 @@ cint CryptoContext_mot::hash1(const cint &id_to_hash) const
 
     if(success)    return result;
     else return cint(0);
+}
+
+cint CryptoContext_mot::hash2(const cint &K_d, const cint &id_a, uint32_t bytes_of_id_a, const cint &id_b,
+                              uint32_t bytes_of_id_b, const cint &msg_a, const cint &msg_b, uint32_t bytes_of_messages) const
+{
+    uint32_t buffer_size = (3* bytes_of_messages) + bytes_of_id_b + bytes_of_id_a;
+    uint8_t *message_buffer = new uint8_t [buffer_size];
+    uint8_t *c_hash;
+    uint32_t hash_len = net_config.get_h2_output_size()/8;
+    const EVP_MD *evp_sha;
+    size_t pcount;
+    bool success;
+    cint result;
+    uint32_t hash_size;
+    if(net_config.get_h2_output_size()<=256)
+    {
+        evp_sha = EVP_sha256();
+        c_hash= new uint8_t[256/8];
+        hash_size = 256/8;
+    }
+    else
+    {
+        evp_sha = EVP_sha512();
+        c_hash = new uint8_t[512/8];
+        hash_size = 512/8;
+    }
+
+    mpz_export(message_buffer , &pcount, -1, sizeof (uint8_t), -1, 0, K_d.get_mpz_t());
+    mpz_export(message_buffer + bytes_of_messages, &pcount, -1, sizeof (uint8_t), -1, 0, id_a.get_mpz_t());
+    mpz_export(message_buffer + bytes_of_messages + bytes_of_id_a, &pcount, -1, sizeof (uint8_t), -1, 0, id_b.get_mpz_t());
+    mpz_export(message_buffer + bytes_of_messages + bytes_of_id_a + bytes_of_id_b, &pcount, -1, sizeof (uint8_t), -1, 0, msg_a.get_mpz_t());
+    mpz_export(message_buffer + (2*bytes_of_messages) + bytes_of_id_a + bytes_of_id_b, &pcount, -1, sizeof (uint8_t), -1, 0, msg_b.get_mpz_t());
+
+    /*
+    std::cout<<"buffer:\n";
+    for(size_t i=0; i<buffer_size; ++i) std::cout<<std::hex<<std::setw(2)<<std::setfill('0')<<uint16_t(message_buffer[i]);
+    std::cout<<"\n\n";
+
+    std::cout<<std::dec<<bytes_of_messages<<"\n";
+    for(size_t i=0; i<bytes_of_messages; ++i) std::cout<<std::hex<<std::setw(2)<<std::setfill('0')<<uint16_t(message_buffer[i]);
+    std::cout<<"\n";
+    std::cout<<std::dec<<bytes_of_id_a<<"\n";
+    for(size_t i=bytes_of_messages; i<bytes_of_messages + bytes_of_id_a; ++i) std::cout<<std::hex<<std::setw(2)<<std::setfill('0')<<uint16_t(message_buffer[i]);
+    std::cout<<"\n";
+    std::cout<<std::dec<<bytes_of_id_b<<"\n";
+    for(size_t i=bytes_of_messages + bytes_of_id_a; i<bytes_of_messages + bytes_of_id_a + bytes_of_id_b; ++i) std::cout<<std::hex<<std::setw(2)<<std::setfill('0')<<uint16_t(message_buffer[i]);
+    std::cout<<"\n";
+    std::cout<<std::dec<<bytes_of_messages<<"\n";
+    for(size_t i=bytes_of_messages + bytes_of_id_a + bytes_of_id_b; i<(2*bytes_of_messages) + bytes_of_id_a + bytes_of_id_b; ++i) std::cout<<std::hex<<std::setw(2)<<std::setfill('0')<<uint16_t(message_buffer[i]);
+    std::cout<<"\n";
+    std::cout<<std::dec<<bytes_of_messages<<"\n";
+    for(size_t i=(2*bytes_of_messages) + bytes_of_id_a + bytes_of_id_b; i<buffer_size; ++i) std::cout<<std::hex<<std::setw(2)<<std::setfill('0')<<uint16_t(message_buffer[i]);
+    std::cout<<"\n";
+    */
+    success = compute_hash(evp_sha,message_buffer,buffer_size,c_hash, hash_len);
+
+
+    mpz_import(result.get_mpz_t(), hash_size,-1,sizeof(uint8_t), -1, 0, c_hash);
+    delete [] c_hash;
+    delete [] message_buffer;
+    return result;
 }
 
 bool CryptoContext_mot::ReadUserDataNotEncrypted(const char *user_data_filename, cint &user_id, cint &user_sk)
@@ -246,4 +388,47 @@ CryptoContext_mot &CryptoContext_mot::operator=(const CryptoContext_mot &context
 
     return *this;
 
+}
+
+CryptoContext_mot::session_status CryptoContext_mot::get_status() const
+{
+    return status;
+}
+
+time_t CryptoContext_mot::get_last_active_timestamp() const
+{
+    return last_active_timestamp;
+}
+
+void CryptoContext_mot::set_last_active_timestamp(const time_t &value)
+{
+    last_active_timestamp = value;
+}
+
+uint32_t CryptoContext_mot::get_session_id() const
+{
+    return session_id;
+}
+
+void CryptoContext_mot::set_session_id(const uint32_t &value)
+{
+    session_id = value;
+}
+
+uint16_t CryptoContext_mot::get_size_of_id_field() const
+{
+    if(net_config.get_user_id_size()%8==0)
+        return uint16_t(net_config.get_user_id_size()/8);
+    else return uint16_t(net_config.get_user_id_size()/8+1);
+}
+
+uint16_t CryptoContext_mot::get_size_of_initmsg_field() const
+{
+    if(net_config.get_rsa_key_size()%8==0)
+        return uint16_t(net_config.get_rsa_key_size()/8);
+    else return uint16_t(net_config.get_rsa_key_size()/8+1);
+}
+cint CryptoContext_mot::get_user_id() const
+{
+    return user_id;
 }

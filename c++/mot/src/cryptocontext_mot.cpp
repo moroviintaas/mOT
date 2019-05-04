@@ -312,6 +312,7 @@ bool CryptoContext_mot::ReadUserDataNotEncrypted(const char *user_data_filename,
     std::string param_name;
     char c_buf;
     uint32_t i_buf;
+    std::string str_id;
     uint32_t line = 1;
 
     user_id = user_sk =0;
@@ -330,10 +331,12 @@ bool CryptoContext_mot::ReadUserDataNotEncrypted(const char *user_data_filename,
     {
         if (param_name == "id:")
         {
+            //Zmiana na string
             ifs>>std::dec>>i_buf;
             ifs>>c_buf;
             ifs>>std::hex>>user_id;
-            //std::cout<<std::dec<<(int) i_buf<<"\t"<< c_buf<<"\t"<<kgc_public_exponent<<"\n";
+
+            //ifs>>str_id;
         }
         else if (param_name == "sk:")
         {

@@ -5,8 +5,7 @@ class PreKgcSetup:
                  session_key_size = SESSION_KEY_SIZE,\
                  h1_size = H1_OUTPUT_SIZE,\
                  h2_size = SESSION_KEY_SIZE,\
-                 ephemeral_exponent_size = EPHEMERAL_EXPONENT_SIZE,\
-                 
+                 ephemeral_exponent_size = EPHEMERAL_EXPONENT_SIZE,\       
                  id_size = ID_SIZE,\
                  endian = ENDIAN):
         self.h1s = h1_size

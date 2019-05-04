@@ -53,7 +53,7 @@ generator={}
         if source_port != "":
             s = s + "source_port={:d}\n".format(source_port)
         if dest_port != "":
-            s = s + "dest_port={:d}\n".format(dest_port)
+            s = s + "destination_port={:d}\n".format(dest_port)
         if address != "":
             s = s + "address={}\n".format(address)
         return s

@@ -58,3 +58,23 @@ cint buffertompzclass(std::array<uint8_t, BUFFSIZE> &buffer, size_t starting_poi
     return result;
 }
 
+
+std::string buffertostring(std::array<uint8_t, BUFFSIZE> &buffer, size_t starting_point, size_t num_of_bytes)
+{
+    std::string result(num_of_bytes, 0);
+    for (size_t i=0; i<num_of_bytes; ++i){
+        result[i] = char(buffer[starting_point + i]);
+    }
+    return result;
+}
+
+int stringtobuffer(std::array<uint8_t, BUFFSIZE> &buffer, const std::string &s,size_t starting_point)
+{
+    if(starting_point + s.size()<= BUFFSIZE){
+        for(size_t i=0 ;i < s.size(); ++i){
+            buffer[starting_point+i] = uint8_t(s[i]);
+        }
+        return 0;
+    }
+    return -1;
+}

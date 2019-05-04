@@ -7,7 +7,7 @@
 #include <random>
 #include <ctime>
 #define SIZE_UL sizeof(unsigned long)
-#define BUFFSIZE 256
+#define BUFFSIZE 512
 
 
 
@@ -17,9 +17,9 @@ class CryptoContext_mot
 protected:
     bool valid;
     ProtocolParameters net_config;
-    cint user_id;
+    std::string user_id;
     cint user_sk;
-    cint corresponder_id;
+    std::string corresponder_id;
     uint8_t *negotiated_key;
     bool allocated_key;
     cint ephemeral_exponent;
@@ -43,7 +43,7 @@ public:
      * @return Return true if hash is computed successfuly, false otherwise.
      */
     bool compute_hash( const EVP_MD* evp_sha ,uint8_t* const to_hash, uint32_t size_of_to_hash, uint8_t* hashed, uint32_t &size_of_hashed) const;
-    CryptoContext_mot(const ProtocolParameters & params, const cint &user_id, const cint &user_pk);
+    CryptoContext_mot(const ProtocolParameters & params, const std::string &user_id, const cint &user_pk);
     CryptoContext_mot(const CryptoContext_mot &context);
     ~CryptoContext_mot();
     /**
@@ -51,8 +51,8 @@ public:
      * @param id_to_hash User Id to be hashed, it is of type mpz_class.
      * @return Output of hash function in type of mpz_class.
      */
-    cint hash1(const cint &id_to_hash) const;
-    cint hash2(const cint &K_d, const cint &id_source, uint32_t bytes_of_id_source, const cint &id_dest, uint32_t bytes_of_id_dest, const cint& msg_source, const cint &msg_dest, uint32_t bytes_of_messages) const;
+    cint hash1(const std::string &id_to_hash) const;
+    cint hash2(const cint &K_d, const std::string &id_source, uint32_t bytes_of_id_source, const std::string &id_dest, uint32_t bytes_of_id_dest, const cint& msg_source, const cint &msg_dest, uint32_t bytes_of_messages) const;
     /**
      * @brief ReadUserDataNotEncrypted Reads user info including his id and pk
      * @param user_data_file Name (path) to file containing data.
@@ -60,10 +60,10 @@ public:
      * @param user_pk Here will be put pk (ltk) of user which is read from file.
      * @return True if success, false otherwise.
      */
-    static bool ReadUserDataNotEncrypted(const char* user_data_filename, cint &user_id, cint &user_sk);
+    static bool ReadUserDataNotEncrypted(const char* user_data_filename, std::string &user_id, cint &user_sk);
 
     cint protocol_message_cint();
-    cint calculate_K(const cint &message, const cint &corespondent_id) const;
+    cint calculate_K(const cint &message, const std::string &corespondent_id) const;
     /**
      * @brief copy_base Copies the context without ephemeral data.
      * @return Copy of context, does not set
@@ -80,9 +80,9 @@ public:
 
     uint16_t get_size_of_id_field() const;
     uint16_t get_size_of_initmsg_field() const;
-    cint get_user_id() const;
-    cint get_corresponder_id() const;
-    void set_corresponder_id(const cint &value);
+    std::string get_user_id() const;
+    std::string get_corresponder_id() const;
+    void set_corresponder_id(const std::string &value);
 };
 
 #endif // CRYPTOCONTEXT_MOT_H

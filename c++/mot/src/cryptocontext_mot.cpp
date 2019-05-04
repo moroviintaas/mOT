@@ -14,12 +14,12 @@
 
 
 
-cint CryptoContext_mot::get_corresponder_id() const
+std::string CryptoContext_mot::get_corresponder_id() const
 {
     return corresponder_id;
 }
 
-void CryptoContext_mot::set_corresponder_id(const cint &value)
+void CryptoContext_mot::set_corresponder_id(const std::string &value)
 {
     corresponder_id = value;
 }
@@ -98,7 +98,7 @@ bool CryptoContext_mot::compute_hash(const EVP_MD* evp_sha, uint8_t * const to_h
 
 
 
-CryptoContext_mot::CryptoContext_mot(const ProtocolParameters &params, const cint &user_id, const cint &user_pk)
+CryptoContext_mot::CryptoContext_mot(const ProtocolParameters &params, const std::string &user_id, const cint &user_pk)
 {
     net_config = params;
     this->user_id = user_id;
@@ -107,7 +107,7 @@ CryptoContext_mot::CryptoContext_mot(const ProtocolParameters &params, const cin
     negotiated_key = new uint8_t [params.get_session_key_size()];
     allocated_key = true;
 
-    if(params.get_valid() && user_id >0 && user_pk > 0) valid = true;
+    if(params.get_valid() && user_id != "" && user_pk > 0) valid = true;
     else valid = false;
 
     status = not_negotiated;
@@ -183,17 +183,18 @@ CryptoContext_mot::~CryptoContext_mot()
     }
 }
 
-cint CryptoContext_mot::hash1(const cint &id_to_hash) const
+cint CryptoContext_mot::hash1(const std::string &id_to_hash) const
 {
-    if (!valid) return -1;
+    //std::cout<<"Hashing:\t"<<id_to_hash<<"\n";
+    if (!valid){ std::cerr<<"Invalid mot_context in hash1!\n";
+        return -1;
+    }
 
-    cint id = id_to_hash;
     cint result = 0;
     cint h_result=0;
     cint two = cint(2);
-    std::cout<<"N:\t"<<std::hex<<net_config.get_kgc_modulus()<<"\n";
-    std::cout<<id_to_hash<<"\n";
-    uint32_t buffer_size = net_config.get_user_id_size()/8;
+
+    uint32_t buffer_size = uint32_t(id_to_hash.size());
     uint8_t* const message_buffer = new uint8_t [buffer_size];
     uint8_t* c_hash;
     uint32_t hash_len = net_config.get_h1_output_size()/8;
@@ -212,24 +213,29 @@ cint CryptoContext_mot::hash1(const cint &id_to_hash) const
     //convert input in to bytes
 
 
-    /* For now I convert gmp int to bytes_array - byte by byte.
-     * It may not be efficient, yet i provides correct endianness for all architectures.
-     */
-    for (uint32_t i =0; i < buffer_size; ++i)
+    for (uint32_t i =0; (i < buffer_size ); ++i)
     {
-        message_buffer[i] = uint8_t(id.get_ui() & 0xff);
-        id >>= 8;
+        message_buffer[i] = uint8_t(id_to_hash[i]);
     }
+
 
     success = compute_hash(evp_sha,message_buffer,buffer_size,c_hash, hash_len);
     if(success)
-    {
+    {   /*
+        //DEBUG:
+        //std::cout<<c_hash<<"\n";
+        for (size_t i=0; i<hash_len; ++i){
+            std::cout<<std::hex<<int(c_hash[i]);
+        }
+        std::cout<<"\n";
+        */
         for (uint32_t i =0; i< hash_len; i++)
         {
             h_result <<= 8;
             h_result += c_hash[hash_len-1-i];
         }
         mpz_powm_sec(result.get_mpz_t(),h_result.get_mpz_t(), two.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t() );
+        //std::cout<<result<<"\n";
     }
     else
     {
@@ -244,9 +250,21 @@ cint CryptoContext_mot::hash1(const cint &id_to_hash) const
     else return cint(0);
 }
 
-cint CryptoContext_mot::hash2(const cint &K_d, const cint &id_a, uint32_t bytes_of_id_a, const cint &id_b,
+cint CryptoContext_mot::hash2(const cint &K_d, const std::string &id_a, uint32_t bytes_of_id_a, const std::string &id_b,
                               uint32_t bytes_of_id_b, const cint &msg_a, const cint &msg_b, uint32_t bytes_of_messages) const
 {
+    /*
+    //DEBUG:
+    std::cout<<"calc K2:\n";
+    std::cout<<K_d<<"\n";
+    std::cout<<id_a<<"\n";
+    std::cout<<bytes_of_id_a<<"\n";
+    std::cout<<id_b<<"\n";
+    std::cout<<bytes_of_id_b<<"\n";
+    std::cout<< msg_a<<"\n";
+    std::cout<< msg_b<<"\n";
+    std::cout<<bytes_of_messages<<"\n";
+    */
     uint32_t buffer_size = (3* bytes_of_messages) + bytes_of_id_b + bytes_of_id_a;
     uint8_t *message_buffer = new uint8_t [buffer_size];
     uint8_t *c_hash;
@@ -269,16 +287,22 @@ cint CryptoContext_mot::hash2(const cint &K_d, const cint &id_a, uint32_t bytes_
         hash_size = 512/8;
     }
 
+    memset(message_buffer, 0, buffer_size);
     mpz_export(message_buffer , &pcount, -1, sizeof (uint8_t), -1, 0, K_d.get_mpz_t());
-    mpz_export(message_buffer + bytes_of_messages, &pcount, -1, sizeof (uint8_t), -1, 0, id_a.get_mpz_t());
-    mpz_export(message_buffer + bytes_of_messages + bytes_of_id_a, &pcount, -1, sizeof (uint8_t), -1, 0, id_b.get_mpz_t());
+    //mpz_export(message_buffer + bytes_of_messages, &pcount, -1, sizeof (uint8_t), -1, 0, id_a.get_mpz_t());
+    //mpz_export(message_buffer + bytes_of_messages + bytes_of_id_a, &pcount, -1, sizeof (uint8_t), -1, 0, id_b.get_mpz_t());
+    memcpy(message_buffer + bytes_of_messages,id_a.c_str(),id_a.size());
+    memcpy(message_buffer + bytes_of_messages+bytes_of_id_a,id_b.c_str(),id_b.size());
     mpz_export(message_buffer + bytes_of_messages + bytes_of_id_a + bytes_of_id_b, &pcount, -1, sizeof (uint8_t), -1, 0, msg_a.get_mpz_t());
     mpz_export(message_buffer + (2*bytes_of_messages) + bytes_of_id_a + bytes_of_id_b, &pcount, -1, sizeof (uint8_t), -1, 0, msg_b.get_mpz_t());
+
+
 
     /*
     std::cout<<"buffer:\n";
     for(size_t i=0; i<buffer_size; ++i) std::cout<<std::hex<<std::setw(2)<<std::setfill('0')<<uint16_t(message_buffer[i]);
     std::cout<<"\n\n";
+
 
     std::cout<<std::dec<<bytes_of_messages<<"\n";
     for(size_t i=0; i<bytes_of_messages; ++i) std::cout<<std::hex<<std::setw(2)<<std::setfill('0')<<uint16_t(message_buffer[i]);
@@ -305,7 +329,7 @@ cint CryptoContext_mot::hash2(const cint &K_d, const cint &id_a, uint32_t bytes_
     return result;
 }
 
-bool CryptoContext_mot::ReadUserDataNotEncrypted(const char *user_data_filename, cint &user_id, cint &user_sk)
+bool CryptoContext_mot::ReadUserDataNotEncrypted(const char *user_data_filename, std::string &user_id, cint &user_sk)
 {
     std::ifstream ifs(user_data_filename, std::ios_base::in);
     double version;
@@ -314,8 +338,8 @@ bool CryptoContext_mot::ReadUserDataNotEncrypted(const char *user_data_filename,
     uint32_t i_buf;
     std::string str_id;
     uint32_t line = 1;
-
-    user_id = user_sk =0;
+    user_id = "";
+    user_sk =0;
 
     ifs>>param_name;
     if (param_name != "version:")
@@ -331,12 +355,12 @@ bool CryptoContext_mot::ReadUserDataNotEncrypted(const char *user_data_filename,
     {
         if (param_name == "id:")
         {
-            //Zmiana na string
+            /*Zmiana na string
             ifs>>std::dec>>i_buf;
             ifs>>c_buf;
-            ifs>>std::hex>>user_id;
-
-            //ifs>>str_id;
+            ifs>>std::hex>>user_id;*/
+            //ifs>>c_buf;
+            ifs>>user_id;
         }
         else if (param_name == "sk:")
         {
@@ -349,7 +373,8 @@ bool CryptoContext_mot::ReadUserDataNotEncrypted(const char *user_data_filename,
 
     }
     ifs.close();
-    if(user_id ==0 || user_sk == 0) return false;
+    //std::cout<<user_id<<"\t"<<user_sk<<"\n";
+    if(user_id =="" || user_sk == 0) return false;
     return true;
 
 }
@@ -365,13 +390,20 @@ cint CryptoContext_mot::protocol_message_cint()
     return result;
 }
 
-cint CryptoContext_mot::calculate_K(const cint &message, const cint &corespondent_id) const
+cint CryptoContext_mot::calculate_K(const cint &message, const std::string &corespondent_id) const
 {
-    if (!valid) return -1;
+    //std::cout<<"|calculating olK!\n";
+    if (!valid){
+        std::cerr<<"Invalid in calculate_K!\n";
+        return -1;
+    }
+
 
     cint tmp1,tmp2,tmp3, result;
     cint doubled_exponent = ephemeral_exponent * 2;
     cint user_hash = hash1(corespondent_id);
+
+    //std::cout<<"cint hash:\t"<<user_hash<<"\n";
 
    mpz_invert(tmp1.get_mpz_t(), user_hash.get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
    mpz_powm_sec(tmp2.get_mpz_t(), message.get_mpz_t(), net_config.get_kgc_public_exponent().get_mpz_t(), net_config.get_kgc_modulus().get_mpz_t());
@@ -431,7 +463,7 @@ uint16_t CryptoContext_mot::get_size_of_initmsg_field() const
         return uint16_t(net_config.get_rsa_key_size()/8);
     else return uint16_t(net_config.get_rsa_key_size()/8+1);
 }
-cint CryptoContext_mot::get_user_id() const
+std::string CryptoContext_mot::get_user_id() const
 {
     return user_id;
 }

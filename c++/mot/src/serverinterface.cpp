@@ -20,7 +20,7 @@ void ServerInterface::start(const CryptoContext_mot &context_template)
     uint32_t operating_session_id;
     cint client_message;
     cint server_message;
-    cint K;
+    cint K,K2;
 
     //uint8_t *send_buf  = new uint8_t[BUFFSIZE];
     //uint8_t *recv_buf  = new uint8_t[BUFFSIZE];
@@ -35,9 +35,10 @@ void ServerInterface::start(const CryptoContext_mot &context_template)
         boost::system::error_code error;
         uint16_t size_in_mod = context_template.get_size_of_initmsg_field();
         uint16_t valid_size_of_id_source = context_template.get_size_of_id_field();
+        uint16_t size_of_src_id = uint16_t(context_template.get_user_id().size());
         uint16_t received_size_of_id_source;
         uint16_t size_of_id_dest;
-        cint corresponder_id;
+        std::string corresponder_id;
         CryptoContext_mot tmp_context(context_template);
         std::array<uint8_t, BUFFSIZE> send_buf = {0};
 
@@ -64,7 +65,7 @@ void ServerInterface::start(const CryptoContext_mot &context_template)
                 {
                     std::cout<<"not correct mod size!\n";
                 }
-                corresponder_id = buffertompzclass(recv_buf, 13,size_of_id_dest);
+                corresponder_id = buffertostring(recv_buf, 13,size_of_id_dest);
                 client_message = buffertompzclass(recv_buf,MESSAGE_START+size_of_id_dest+received_size_of_id_source,size_in_mod);
 
                 server_message = tmp_context.protocol_message_cint();
@@ -74,12 +75,12 @@ void ServerInterface::start(const CryptoContext_mot &context_template)
                 new_session_id ^= buffertouint32(recv_buf,3);
 
                 K = tmp_context.calculate_K(client_message,corresponder_id);
-                K = tmp_context.hash2(K, corresponder_id, size_of_id_dest,tmp_context.get_user_id(),valid_size_of_id_source, client_message, server_message, size_in_mod);
+                K2 = tmp_context.hash2(K, corresponder_id, size_of_id_dest,tmp_context.get_user_id(),size_of_src_id, client_message, server_message, size_in_mod);
                 //std::cout<<std::hex<<buffertouint32(recv_buf,3)<<"\n";
                 //new_session_id ^= ((uint32_t(recv_buf[3])<<24) ^ uint32_t(recv_buf[4])<<16);
 
-
-
+                //std::cout<<std::dec<<size_of_id_dest<<"\t"<<context_template.get_user_id()<<"\n";
+                send_buf.fill(0);
                 send_buf [0] = flag_client_hello;
                 send_buf [1] = version_h;
                 send_buf [2] = version_l;
@@ -89,22 +90,29 @@ void ServerInterface::start(const CryptoContext_mot &context_template)
                 send_buf [5] = uint8_t((new_session_id>>8)&0xff);
                 send_buf [6] = uint8_t((new_session_id)&0xff);
                 */
+
                 uint32tobuffer(new_session_id, send_buf,3);
-                uint16tobuffer(valid_size_of_id_source,send_buf,7);
+                uint16tobuffer(size_of_src_id,send_buf,7);
                 uint16tobuffer(size_of_id_dest,send_buf,9);
                 uint16tobuffer(size_in_mod,send_buf,11);
-                mpzclasstobuffer(context_template.get_user_id(),send_buf,MESSAGE_START);
-                mpzclasstobuffer(corresponder_id,send_buf, MESSAGE_START+valid_size_of_id_source);
-                mpzclasstobuffer(server_message,send_buf,MESSAGE_START+valid_size_of_id_source+size_of_id_dest);
-
+                //memset(send_buf.data()+MESSAGE_START, 0, MESSAGE_START+size_of_src_id + size_of_id_dest + size_in_mod);
+                stringtobuffer(send_buf,context_template.get_user_id(),MESSAGE_START);
+                stringtobuffer(send_buf, corresponder_id,MESSAGE_START+size_of_src_id);
+                mpzclasstobuffer(server_message,send_buf,MESSAGE_START+size_of_src_id + size_of_id_dest);
+                /*
+                std::cout<<"client message:\t"<<server_message<<"\n";
+                cint clnt_msg (client_message);
+                std::cout<<"server message:'t"<<clnt_msg<<"\n";
+                */
                 /*
                 std::cout<<"sessionid:\t"<<std::hex<<new_session_id<<"\n";
                 std::cout<<"my id:\t"<<std::hex<<context_template.get_user_id()<<"\n";
                 std::cout<<"corresponder id\t:"<<std::hex<<corresponder_id<<"\n";
                 std::cout<<"client message:\t"<<client_message<<"\n";
                 std::cout<<"server messgae:\t"<<server_message<<"\n";
-                */
-                std::cout<<"K=\t"<<K<<"\n";
+                std::cout<<"ss=\t"<<K<<"\n";*/
+
+                std::cout<<"K=\t"<<K2<<"\n";
 
                 tmp_context.set_corresponder_id(corresponder_id);
                 tmp_context.set_session_id(new_session_id);
@@ -118,7 +126,7 @@ void ServerInterface::start(const CryptoContext_mot &context_template)
             else if (recv_buf[0]==flag_termiante)
             {
                 operating_session_id = buffertouint32(recv_buf,3);
-                std::cout<<std::hex<<operating_session_id<< "\n";
+                std::cout<<"closing session:"<<std::hex<<operating_session_id<< "\n";
                 //for(size_t i =0; i< vec_context.size(); ++i)
                 std::vector<CryptoContext_mot>::iterator tmp;
                 for(size_t i =0; i<vec_context.size();  ++i)

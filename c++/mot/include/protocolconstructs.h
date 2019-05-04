@@ -29,4 +29,8 @@ uint16_t buffertouint16(std::array<uint8_t, BUFFSIZE> &buffer, size_t starting_p
 int32_t mpzclasstobuffer(const cint &number, std::array<uint8_t, BUFFSIZE> & buffer, size_t starting_point);
 cint buffertompzclass(std::array<uint8_t, BUFFSIZE> &buffer, size_t starting_point, size_t word_count);
 
+int stringtobuffer(std::array<uint8_t, BUFFSIZE> & buffer, const std::string &s, size_t starting_point);
+std::string buffertostring(std::array<uint8_t, BUFFSIZE> &buffer, size_t starting_point, size_t num_of_bytes);
+
+
 #endif // PROTOCOL_FLAGS_H

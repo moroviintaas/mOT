@@ -21,11 +21,15 @@ void ClientInterface::start(const CryptoContext_mot &context)
     uint16_t valid_size_of_id_source = context.get_size_of_id_field();
     uint16_t size_of_id_dest =0;
     uint16_t received_size_of_id_source;
-    cint corresponder_id;
+    std::string corresponder_id;
     CryptoContext_mot actual_context = context;
     cint client_message;
     cint server_message;
-    cint K;
+    cint K,K2;
+
+
+    //std::cout<<"id:\t"<<context.get_user_id()<<"\n";
+
     //uint8_t *send_buf  = new uint8_t[BUFFSIZE];
     //uint8_t *recv_buf  = new uint8_t[BUFFSIZE];
     boost::system::error_code ignored_error;
@@ -39,6 +43,7 @@ void ClientInterface::start(const CryptoContext_mot &context)
         udp::socket socket(io_service, udp::endpoint(udp::v4(), source_port));
         std::array<uint8_t, BUFFSIZE> recv_buf;
         udp::endpoint sender_endpoint;
+        uint16_t size_of_src_id = uint16_t(context.get_user_id().size());
         //socket.open(udp::v4());
 
         session_id = d(rd);
@@ -46,6 +51,8 @@ void ClientInterface::start(const CryptoContext_mot &context)
         client_message = tmp_context.protocol_message_cint();
 
 
+
+        send_buf.fill(0);
         send_buf[0] = flag_client_hello;
         send_buf[1] = version_h;//version 0.1
         send_buf[2] = version_l;
@@ -53,13 +60,15 @@ void ClientInterface::start(const CryptoContext_mot &context)
         send_buf[3] = uint8_t((session_id>>8)&0xff);
         send_buf[4] = uint8_t(session_id&0xff);
         */
+
         uint32tobuffer(session_id, send_buf, 3);
-        uint16tobuffer(valid_size_of_id_source, send_buf, 7);
+        uint16tobuffer(size_of_src_id, send_buf, 7);
         uint16tobuffer(size_of_id_dest ,send_buf,9);
         uint16tobuffer(size_in_mod, send_buf, 11);
-        mpzclasstobuffer(context.get_user_id(), send_buf,MESSAGE_START);
-        mpzclasstobuffer(client_message,send_buf,MESSAGE_START+size_of_id_dest+valid_size_of_id_source);
+        stringtobuffer( send_buf,context.get_user_id(),MESSAGE_START);
+        mpzclasstobuffer(client_message,send_buf,MESSAGE_START+size_of_id_dest+size_of_src_id);
 
+        //std::cout<<std::dec<<size_of_id_dest<<"\t"<<context.get_user_id()<<"\n";
 
 
 
@@ -82,22 +91,30 @@ void ClientInterface::start(const CryptoContext_mot &context)
             session_id = buffertouint32(recv_buf, 3);
             size_of_id_dest = buffertouint16(recv_buf,7);
             received_size_of_id_source = buffertouint16(recv_buf,9);
-            corresponder_id = buffertompzclass(recv_buf,13,size_of_id_dest);
+            corresponder_id = buffertostring(recv_buf,13,size_of_id_dest);
+
+            //std::cout<<size_of_id_dest<<" "<<int(recv_buf[13]);
+            //std::cout<<"corresponder id:\t"<<corresponder_id<<"\n";
             server_message = buffertompzclass(recv_buf,MESSAGE_START+size_of_id_dest + received_size_of_id_source,size_in_mod);
             K = tmp_context.calculate_K(server_message,corresponder_id);
-            K = tmp_context.hash2(K,tmp_context.get_user_id(),valid_size_of_id_source, corresponder_id, size_of_id_dest, client_message, server_message, size_in_mod);
+            K2 = tmp_context.hash2(K,tmp_context.get_user_id(),size_of_src_id, corresponder_id, size_of_id_dest, client_message, server_message, size_in_mod);
 
             tmp_context.set_corresponder_id(corresponder_id);
             tmp_context.set_session_id(session_id);
-
+            /*
+            std::cout<<"client message:\t"<<client_message<<"\n";
+            cint serv_msg (server_message);
+            std::cout<<"server message:'t"<<serv_msg<<"\n";
+            */
             /*
             std::cout<<"sessionid:\t"<<std::hex<<session_id<<"\n";
             std::cout<<"my id:\t"<<std::hex<<context.get_user_id()<<"\n";
             std::cout<<"corresponder id\t:"<<std::hex<<corresponder_id<<"\n";
             std::cout<<"client message:\t"<<client_message<<"\n";
             std::cout<<"server messgae:\t"<<server_message<<"\n";
-            */
-            std::cout<<"K=\t"<<K<<"\n";
+            std::cout<<"ss=\t"<<K<<"\n";*/
+
+            std::cout<<"K=\t"<<K2<<"\n";
 
             send_buf[0] = flag_termiante;
             uint32tobuffer(session_id,send_buf,3);

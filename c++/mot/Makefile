@@ -2,11 +2,11 @@ IDIR = include
 SRCDIR = src
 CC = g++
 CFLAGS=-I. -c
-CXXFLAGS      = -pipe -g -std=gnu++11 -Wall -W -fPIC $(DEFINES)
+CXXFLAGS      = -pipe -g -std=gnu++11  -Wall -W -fPIC $(DEFINES)
 
 ODIR = obj
 
-LIBS=-lgmp -lgmpxx -lcrypto -lpthread -lboost_system -lboost_program_options
+LIBS= -L/usr/local/lib -lgmp -lgmpxx -lssl -lcrypto -lpthread -lboost_system -lboost_program_options
 
 _DEPS =  protocolparameters.h cryptocontext_mot.h protocolconstructs.h serverinterface.h clientinterface.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))

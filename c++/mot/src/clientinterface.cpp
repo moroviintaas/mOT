@@ -54,26 +54,23 @@ void ClientInterface::start(const CryptoContext_mot &context)
 
         send_buf.fill(0);
         send_buf[0] = flag_client_hello;
-        send_buf[1] = version_h;//version 0.1
-        send_buf[2] = version_l;
-        /*
-        send_buf[3] = uint8_t((session_id>>8)&0xff);
-        send_buf[4] = uint8_t(session_id&0xff);
-        */
+        send_buf[FIELD_VH] = version_h;//version 0.1
+        send_buf[FIELD_VL] = version_l;
 
-        uint32tobuffer(session_id, send_buf, 3);
-        uint16tobuffer(size_of_src_id, send_buf, 7);
-        uint16tobuffer(size_of_id_dest ,send_buf,9);
-        uint16tobuffer(size_in_mod, send_buf, 11);
-        stringtobuffer( send_buf,context.get_user_id(),MESSAGE_START);
-        mpzclasstobuffer(client_message,send_buf,MESSAGE_START+size_of_id_dest+size_of_src_id);
+        uint32tobuffer(session_id, send_buf, FIELD_SESSION_ID);
 
-        //std::cout<<std::dec<<size_of_id_dest<<"\t"<<context.get_user_id()<<"\n";
+        // Hardcoded setting for now:
+        send_buf[FIELD_SETTING] = SETTING_1024_160_SHA256_SHA256;
 
+        uint16tobuffer(size_of_src_id, send_buf, FIELD_SIZE_SRC_ID);
+        uint16tobuffer(size_of_id_dest ,send_buf,FIELD_SIZE_DEST_ID);
+        uint16tobuffer(size_in_mod, send_buf, FIELD_SIZE_HANDSHAKE_PAYLOAD);
+        stringtobuffer( send_buf,context.get_user_id(),FIELD_MESSAGE_START);
+        mpzclasstobuffer(client_message,send_buf,FIELD_MESSAGE_START+size_of_id_dest+size_of_src_id);
+        send_buf[FIELD_MESSAGE_START+size_of_id_dest+size_of_src_id+size_in_mod] = SIZE_OF_KGC_ID;
+        //std::cout<<std::hex<<context.get_kgc_id()<<"\n";
+        uint64tobuffer(context.get_kgc_id(), send_buf, FIELD_MESSAGE_START+size_of_id_dest+size_of_src_id+size_in_mod+1 );
 
-
-
-        //std::cout<<session_id<<"\n";
 
 
 
@@ -88,14 +85,19 @@ void ClientInterface::start(const CryptoContext_mot &context)
         {
             //std::cout<<"old:"<<std::hex<<session_id<<"\n";
             //session_id = uint32_t((recv_buf[3]&0xff)<<24) ^ uint32_t((recv_buf[4]&0xff)<<16) ^ uint32_t((recv_buf[5]&0xff)<<8)  ^ uint32_t((recv_buf[6]&0xff));
-            session_id = buffertouint32(recv_buf, 3);
-            size_of_id_dest = buffertouint16(recv_buf,7);
-            received_size_of_id_source = buffertouint16(recv_buf,9);
-            corresponder_id = buffertostring(recv_buf,13,size_of_id_dest);
+            session_id = buffertouint32(recv_buf, FIELD_SESSION_ID);
+            size_of_id_dest = buffertouint16(recv_buf,FIELD_SIZE_SRC_ID);
+            received_size_of_id_source = buffertouint16(recv_buf,FIELD_SIZE_DEST_ID);
+            corresponder_id = buffertostring(recv_buf,FIELD_MESSAGE_START,size_of_id_dest);
+            //received_size_of_id_source = buffertouint16(recv_buf,FIELD_SIZE_DEST_ID);
+            if (size_in_mod != buffertouint16(recv_buf,FIELD_SIZE_HANDSHAKE_PAYLOAD))
+            {
+                std::cout<<"not correct mod size!\n";
+            }
 
             //std::cout<<size_of_id_dest<<" "<<int(recv_buf[13]);
             //std::cout<<"corresponder id:\t"<<corresponder_id<<"\n";
-            server_message = buffertompzclass(recv_buf,MESSAGE_START+size_of_id_dest + received_size_of_id_source,size_in_mod);
+            server_message = buffertompzclass(recv_buf,FIELD_MESSAGE_START+size_of_id_dest + received_size_of_id_source,size_in_mod);
             K = tmp_context.calculate_K(server_message,corresponder_id);
             K2 = tmp_context.hash2(K,tmp_context.get_user_id(),size_of_src_id, corresponder_id, size_of_id_dest, client_message, server_message, size_in_mod);
 
@@ -114,7 +116,7 @@ void ClientInterface::start(const CryptoContext_mot &context)
             std::cout<<"server messgae:\t"<<server_message<<"\n";
             std::cout<<"ss=\t"<<K<<"\n";*/
 
-            std::cout<<"K=\t"<<K2<<"\n";
+            std::cout<<"K=\t"<<std::hex<<K2<<"\n";
 
             send_buf[0] = flag_termiante;
             uint32tobuffer(session_id,send_buf,3);

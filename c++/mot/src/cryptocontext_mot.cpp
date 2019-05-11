@@ -24,6 +24,8 @@ void CryptoContext_mot::set_corresponder_id(const std::string &value)
     corresponder_id = value;
 }
 
+
+
 void CryptoContext_mot::generate_session_exponent()
 {
     //boost::random_device rd;
@@ -466,4 +468,10 @@ uint16_t CryptoContext_mot::get_size_of_initmsg_field() const
 std::string CryptoContext_mot::get_user_id() const
 {
     return user_id;
+}
+
+uint64_t CryptoContext_mot::get_kgc_id() const
+{
+    return mpz_get_ui(net_config.get_kgc_modulus().get_mpz_t());
+
 }

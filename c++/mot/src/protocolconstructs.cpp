@@ -5,6 +5,26 @@ void hello()
     std::cout<<"hello!\n";
 }
 
+void uint64tobuffer(uint64_t number, std::array<uint8_t, BUFFSIZE> &buffer, size_t starting_point)
+{
+    for(size_t i=0; i<8; ++i)
+    {
+        buffer [starting_point+i] = uint8_t((number>>((8*i)))&0xff);
+    }
+}
+
+uint64_t buffertouint64(std::array<uint8_t, BUFFSIZE> &buffer, size_t starting_point)
+{
+    uint64_t result = 0;
+    for(size_t i=0; i<8; ++i)
+    {
+        result ^= (uint64_t(buffer[starting_point+i]&0xff)<<((8*i)));
+        //buffer [starting_point+i] = uint8_t((number>>(24-(8*i)))&0xff);
+    }
+    return result;
+
+}
+
 void uint32tobuffer(uint32_t number, std::array<uint8_t, BUFFSIZE> &buffer, size_t starting_point)
 {
     for(size_t i=0; i<4; ++i)
@@ -78,3 +98,5 @@ int stringtobuffer(std::array<uint8_t, BUFFSIZE> &buffer, const std::string &s,s
     }
     return -1;
 }
+
+

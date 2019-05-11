@@ -83,6 +83,8 @@ public:
     std::string get_user_id() const;
     std::string get_corresponder_id() const;
     void set_corresponder_id(const std::string &value);
+
+    uint64_t get_kgc_id() const;
 };
 
 #endif // CRYPTOCONTEXT_MOT_H

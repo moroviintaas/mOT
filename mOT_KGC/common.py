@@ -93,6 +93,19 @@ def miller_rabin_test(number, security=100):
 
 #Rozłożenie N-1 = d* (2**r)
 
+#def get_secure_prime(num_of_bytes, security_level):
+#    failure_counter = 0
+#    next_failure_jump = 4
+#    success = False
+#    while success == False:
+#        p1 = get_random(num_of_bytes)
+#        if p1 % 2 == 0:
+#            p1 -= 1
+#        if miller_rabin_test(p1, security_level) and miller_rabin_test((2*p1)+1, security_level):
+#            return (2*p1)+1
+#        else:
+#            failure_counter +=1
+
 def get_secure_prime(num_of_bytes, security_level):
     failure_counter = 0
     next_failure_jump = 4
@@ -101,11 +114,15 @@ def get_secure_prime(num_of_bytes, security_level):
         p1 = get_random(num_of_bytes)
         if p1 % 2 == 0:
             p1 -= 1
-        if miller_rabin_test(p1, security_level) and miller_rabin_test((2*p1)+1, security_level):
-            return (2*p1)+1
+        if miller_rabin_test(p1, 10):
+            if miller_rabin_test((2*p1)+1, security_level):
+                if miller_rabin_test(p1,security_level-10):
+                    return (2*p1)+1
         else:
             failure_counter +=1
-
+            if failure_counter >= next_failure_jump:
+                security_level+=1
+                next_failure_jump*=4
 def mr(number):
     t = number
     r = 0
